@@ -1,5 +1,27 @@
 # Complete Guide to Configure an Access Point and DHCP Server on Raspberry Pi
 
+## Step 0: Create the Configuration Script
+
+Before starting, create a script for configuring the network interface. Open a terminal and run the following command to create the script file:
+
+```bash
+sudo nano /usr/local/bin/conf_eth0.sh
+```
+
+Then, add the following content to the script:
+
+```bash
+#!/bin/bash
+sudo ip addr add 172.16.23.29/24 dev eth0
+sudo ip route add default via 172.16.23.1 dev eth0
+```
+
+Save and close the file (CTRL + X, then Y, and Enter). Make the script executable with:
+
+```bash
+sudo chmod +x /usr/local/bin/conf_eth0.sh
+```
+
 ## Step 1: Update and Upgrade the System
 ```bash
 sudo apt update && sudo apt upgrade -y
