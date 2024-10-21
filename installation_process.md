@@ -1,11 +1,20 @@
 # Complete Guide to Configure an Access Point and DHCP Server on Raspberry Pi
 
-## Step 0: Create and Execute the Configuration Script
+## Step 0: Disable Services
+Disable unnecessary services to improve boot time:
+```bash
+sudo systemctl stop NetworkManager-wait-online.service
+sudo systemctl disable NetworkManager-wait-online.service
+sudo systemctl stop systemd-networkd
+sudo systemctl disable systemd-networkd
+```
+
+## Step 1: Create and Execute the Configuration Script
 
 Create a script for configuring the network interface in your home directory. Open a terminal and run the following command:
 
 ```bash
-nano ~/conf_eth0.sh
+nano conf_eth0.sh
 ```
 
 Add the following content to the script:
@@ -19,30 +28,25 @@ sudo ip route add default via 172.16.23.1 dev eth0
 Save and close the file (CTRL + X, then Y, and Enter). Make the script executable and run it with:
 
 ```bash
-chmod +x ~/conf_eth0.sh
-sudo ./conf_eth0.sh
+chmod +x conf_eth0.sh
+./conf_eth0.sh
 ```
 
-## Step 1: Update and Upgrade the System
+## Step 2: Update and Upgrade the System
 ```bash
 sudo apt update && sudo apt upgrade -y
 ```
+Then restart your Raspberry Pi:
+```bash
+sudo reboot
+```
 
-## Step 2: Install Required Packages
+## Step 3: Install Required Packages
 Run the following commands to install the necessary packages and set iptables-persistent to auto-save:
 ```bash
 echo iptables-persistent iptables-persistent/autosave_v4 boolean true | sudo debconf-set-selections
 echo iptables-persistent iptables-persistent/autosave_v6 boolean true | sudo debconf-set-selections
 sudo apt-get install -y hostapd dnsmasq iptables-persistent dhcpcd5 iw
-```
-
-## Step 3: Disable Services
-Disable unnecessary services to improve boot time:
-```bash
-sudo systemctl stop NetworkManager-wait-online.service
-sudo systemctl disable NetworkManager-wait-online.service
-sudo systemctl stop systemd-networkd
-sudo systemctl disable systemd-networkd
 ```
 
 ## Step 4: Configure dhcpcd.conf
