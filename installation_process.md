@@ -10,23 +10,17 @@ sudo systemctl disable systemd-networkd
 ```
 
 ## Step 1: Create and Execute the Configuration Script
-
 Create a script for configuring the network interface in your home directory. Open a terminal and run the following command:
-
 ```bash
 nano conf_eth0.sh
 ```
-
 Add the following content to the script:
-
 ```bash
 #!/bin/bash
 sudo ip addr add 172.16.23.29/24 dev eth0
 sudo ip route add default via 172.16.23.1 dev eth0
 ```
-
 Save and close the file (CTRL + X, then Y, and Enter). Make the script executable and run it with:
-
 ```bash
 chmod +x conf_eth0.sh
 ./conf_eth0.sh
@@ -56,9 +50,6 @@ sudo nano /etc/dhcpcd.conf
 ```
 Replace the content with the following configuration:
 ```plaintext
-# A sample configuration for dhcpcd.
-# See dhcpcd.conf(5) for details.
-
 duid
 
 persistent
@@ -116,13 +107,17 @@ driver=nl80211
 ssid=MH_Example
 hw_mode=g
 channel=6
-wmm_enabled=0
 macaddr_acl=0
 auth_algs=1
 ignore_broadcast_ssid=0
 wpa=2
 wpa_passphrase=password
 rsn_pairwise=CCMP
+
+# Specific options for Raspberry Pi
+country_code=ES  # Change this to your country code (ES for Spain, for example)
+ieee80211n=1  # Enable 802.11n for improved performance
+wmm_enabled=1  # Enable WMM for QoS
 ```
 Save and close the file.
 
@@ -136,14 +131,24 @@ DAEMON_CONF="/etc/hostapd/hostapd.conf"
 ```
 Save and close the file.
 
-## Step 7: Enable IP Forwarding
+## Step 7: Modify hostapd Service Configuration
+To ensure that the access point initializes properly on boot, modify the `hostapd.service` file:
+```bash
+sudo nano /lib/systemd/system/hostapd.service
+```
+In the `[Service]` section, add the following line:
+```plaintext
+ExecStartPre=/bin/sleep 15
+```
+
+## Step 8: Enable IP Forwarding
 Ensure that IP forwarding is enabled:
 ```bash
 echo "net.ipv4.ip_forward=1" | sudo tee -a /etc/sysctl.conf
 sudo sysctl -p
 ```
 
-## Step 8: Configure iptables Rules
+## Step 9: Configure iptables Rules
 Allow traffic between wlan0 and eth0:
 ```bash
 # Allow traffic from wlan0 to eth0
@@ -153,13 +158,13 @@ sudo iptables -A FORWARD -i wlan0 -o eth0 -j ACCEPT
 sudo iptables -A FORWARD -i eth0 -o wlan0 -m state --state RELATED,ESTABLISHED -j ACCEPT
 ```
 
-## Step 9: Save iptables Rules
+## Step 10: Save iptables Rules
 Ensure that iptables rules are applied after reboot:
 ```bash
 sudo netfilter-persistent save
 ```
 
-## Step 10: Unmask and Restart Services
+## Step 11: Unmask and Restart Services
 Unmask dnsmasq and restart the services:
 ```bash
 sudo systemctl unmask hostapd.service
@@ -168,19 +173,16 @@ sudo systemctl restart dhcpcd.service
 sudo systemctl restart hostapd.service
 ```
 
-## Step 11: Restart the Raspberry Pi
+## Step 12: Restart the Raspberry Pi
 Finally, restart your Raspberry Pi for all changes to take effect:
 ```bash
 sudo reboot
 ```
 
-
-
-
-## Extra to get internet access:
-
-```
-capstone@mother-hub:~ $ sudo iptables -A FORWARD -i wlan0 -o eth0 -j ACCEPT
-capstone@mother-hub:~ $ sudo iptables -A FORWARD -i eth0 -o wlan0 -m state --state RELATED,ESTABLISHED -j ACCEPT
-capstone@mother-hub:~ $ sudo iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+## Extra to Get Internet Access
+To enable Internet access through the `wlan0` connection, add the following iptables rules. These rules allow traffic from `wlan0` to `eth0` and vice versa, and apply NAT so devices on `wlan0` can access the Internet.
+```bash
+sudo iptables -A FORWARD -i wlan0 -o eth0 -j ACCEPT
+sudo iptables -A FORWARD -i eth0 -o wlan0 -m state --state RELATED,ESTABLISHED -j ACCEPT
+sudo iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
 ```
