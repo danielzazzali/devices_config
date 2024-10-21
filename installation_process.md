@@ -162,13 +162,25 @@ sudo netfilter-persistent save
 ## Step 10: Unmask and Restart Services
 Unmask dnsmasq and restart the services:
 ```bash
-sudo systemctl unmask dnsmasq
-sudo systemctl restart dnsmasq
-sudo systemctl restart hostapd
+sudo systemctl unmask hostapd.service
+sudo systemctl restart dnsmasq.service
+sudo systemctl restart dhcpcd.service
+sudo systemctl restart hostapd.service
 ```
 
 ## Step 11: Restart the Raspberry Pi
 Finally, restart your Raspberry Pi for all changes to take effect:
 ```bash
 sudo reboot
+```
+
+
+
+
+## Extra to get internet access:
+
+```
+capstone@mother-hub:~ $ sudo iptables -A FORWARD -i wlan0 -o eth0 -j ACCEPT
+capstone@mother-hub:~ $ sudo iptables -A FORWARD -i eth0 -o wlan0 -m state --state RELATED,ESTABLISHED -j ACCEPT
+capstone@mother-hub:~ $ sudo iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
 ```
