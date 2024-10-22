@@ -10,7 +10,7 @@ sudo systemctl disable systemd-networkd
 ```
 
 ## Step 1: Configure eth0 (Wired Interface)
-Create a script to configure the eth0 interface:
+Create a script to configure the `eth0` interface:
 ```bash
 nano conf_eth0.sh
 ```
@@ -44,8 +44,8 @@ echo iptables-persistent iptables-persistent/autosave_v6 boolean true | sudo deb
 sudo apt-get install -y dnsmasq iptables-persistent wpa_supplicant dhcpcd5
 ```
 
-## Step 4: Configure dhcpcd.conf for Both Interfaces
-Edit the dhcpcd configuration file:
+## Step 4: Configure `dhcpcd.conf` for Both Interfaces
+Edit the `dhcpcd` configuration file:
 ```bash
 sudo nano /etc/dhcpcd.conf
 ```
@@ -74,26 +74,75 @@ nohook wpa_supplicant
 ```
 Save and close the file (CTRL + X, then Y, and Enter).
 
-## Step 5: Configure wlan0 to Connect to an Existing AP
-Configure wlan0 to connect to an external Wi-Fi network (AP):
+## Step 5: Configure wlan0 to Connect to an Existing AP Using wpa_supplicant
+Configure `wlan0` to connect to an external Wi-Fi network (AP):
 ```bash
 sudo nano /etc/wpa_supplicant/wpa_supplicant.conf
 ```
 Add your Wi-Fi details:
 ```plaintext
-country=ES  # Replace with your country code
 ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
 update_config=1
 
 network={
-    ssid="Your_SSID"
-    psk="Your_Password"
-    key_mgmt=WPA-PSK
+    ssid="MH_SSID"
+    psk="password"
 }
 ```
 Save and close the file.
 
-## Step 6: Configure Routing Between eth0 and wlan0
+## Step 6: Initialize and Connect wlan0 with wpa_cli
+1. **Verify available network interfaces:**
+   ```bash
+   iw dev
+   ```
+   Ensure `wlan0` (or another Wi-Fi interface) is available.
+
+2. **Start `wpa_supplicant`:**
+   ```bash
+   sudo wpa_supplicant -B -Dnl80211 -c/etc/wpa_supplicant/wpa_supplicant.conf -iwlan0
+   ```
+
+3. **Scan for nearby Wi-Fi networks:**
+   ```bash
+   sudo wpa_cli -i wlan0 scan
+   sleep 3  # Wait 3 seconds for the scan to complete
+   sudo wpa_cli -i wlan0 scan_results
+   ```
+
+4. **List currently configured networks:**
+   ```bash
+   sudo wpa_cli -i wlan0 list_networks
+   ```
+
+5. **Add a new network:**
+   ```bash
+   NET_ID=$(sudo wpa_cli -i wlan0 add_network)
+   ```
+
+6. **Set SSID and password:**
+   ```bash
+   sudo wpa_cli -i wlan0 set_network $NET_ID ssid '"Your_SSID"'
+   sudo wpa_cli -i wlan0 set_network $NET_ID psk '"Your_WiFi_Password"'
+   ```
+
+7. **For an open network (no password):**
+   ```bash
+   sudo wpa_cli -i wlan0 set_network $NET_ID key_mgmt NONE
+   ```
+
+8. **Connect to the network:**
+   ```bash
+   sudo wpa_cli -i wlan0 enable_network $NET_ID
+   sudo wpa_cli -i wlan0 select_network $NET_ID
+   ```
+
+9. **Check Wi-Fi connection status:**
+   ```bash
+   iwconfig wlan0
+   ```
+
+## Step 7: Configure Routing Between eth0 and wlan0
 Edit iptables to allow traffic between the two interfaces:
 ```bash
 # Allow forwarding from eth0 to wlan0
@@ -108,30 +157,30 @@ Enable NAT (Network Address Translation) to share internet from `wlan0` to `eth0
 sudo iptables -t nat -A POSTROUTING -o wlan0 -j MASQUERADE
 ```
 
-## Step 7: Save iptables Rules
+## Step 8: Save iptables Rules
 Make sure iptables rules persist after a reboot:
 ```bash
 sudo netfilter-persistent save
 ```
 
-## Step 8: Enable IP Forwarding
+## Step 9: Enable IP Forwarding
 Enable IP forwarding to route packets between interfaces:
 ```bash
 echo "net.ipv4.ip_forward=1" | sudo tee -a /etc/sysctl.conf
 sudo sysctl -p
 ```
 
-## Step 9: Restart Networking Services
+## Step 10: Restart Networking Services
 Restart the necessary services to apply the changes:
 ```bash
 sudo systemctl restart dhcpcd
 sudo systemctl restart wpa_supplicant
 ```
 
-## Step 10: Reboot Raspberry Pi
+## Step 11: Reboot Raspberry Pi
 Finally, reboot your Raspberry Pi for all changes to take effect:
 ```bash
 sudo reboot
 ```
 
-Now your Raspberry Pi should connect to the external Wi-Fi network via `wlan0` and route traffic between `eth0` and `wlan0`.
+Now, your Raspberry Pi should connect to the external Wi-Fi network via `wlan0`, and route traffic between `eth0` and `wlan0`.
