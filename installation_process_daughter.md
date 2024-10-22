@@ -41,7 +41,7 @@ Install necessary packages for networking and set up iptables-persistent to auto
 ```bash
 echo iptables-persistent iptables-persistent/autosave_v4 boolean true | sudo debconf-set-selections
 echo iptables-persistent iptables-persistent/autosave_v6 boolean true | sudo debconf-set-selections
-sudo apt-get install -y dnsmasq iptables-persistent wpa_supplicant dhcpcd5
+sudo apt-get install -y dnsmasq iptables-persistent dhcpcd5
 ```
 
 ## Step 4: Configure `dhcpcd.conf` for Both Interfaces
