@@ -184,3 +184,9 @@ sudo reboot
 ```
 
 Now, your Raspberry Pi should connect to the external Wi-Fi network via `wlan0`, and route traffic between `eth0` and `wlan0`.
+
+NEW DISCOVERY:
+
+must delete sudo rm /var/run/wpa_supplicant/wlan0
+and then reinitialize sudo wpa_supplicant -B -Dnl80211 -c/etc/wpa_supplicant/wpa_supplicant.conf -iwlan0
+
