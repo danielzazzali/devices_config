@@ -102,8 +102,10 @@ configure_iptables() {
     sudo sysctl -p
 
     # Add iptables rules
-    sudo iptables -A FORWARD -i wlan0 -o eth0 -j ACCEPT
-    sudo iptables -A FORWARD -i eth0 -o wlan0 -m state --state RELATED,ESTABLISHED -j ACCEPT
+    log "Configuring iptables rules..."
+    sudo iptables -A FORWARD -i eth0 -o wlan0 -j ACCEPT
+    sudo iptables -A FORWARD -i wlan0 -o eth0 -m state --state RELATED,ESTABLISHED -j ACCEPT
+    sudo iptables -t nat -A POSTROUTING -o wlan0 -j MASQUERADE
 
     # Save iptables rules
     sudo netfilter-persistent save
@@ -154,8 +156,8 @@ configure_ap_mode() {
     read -p "Enter the subnet mask for eth0 (default 24): " ETH_MASK
     ETH_MASK=${ETH_MASK:-24}
 
-    read -p "Enter the DHCP range for wlan0 (default 10.0.0.10,10.0.0.20): " WLAN_RANGE
-    WLAN_RANGE=${WLAN_RANGE:-10.0.0.10,10.0.0.20}
+    read -p "Enter the DHCP range for wlan0 (default 10.0.0.10,10.0.0.30): " WLAN_RANGE
+    WLAN_RANGE=${WLAN_RANGE:-10.0.0.10,10.0.0.30}
     
     read -p "Enter the DHCP range for eth0 (default 11.0.0.10,11.0.0.100): " ETH_RANGE
     ETH_RANGE=${ETH_RANGE:-11.0.0.10,11.0.0.100}
@@ -167,7 +169,7 @@ configure_ap_mode() {
     configure_dnsmasq
     
     # Get AP settings
-    read -p "Enter SSID name (without prefix, will be prefixed with AP_): " SSID
+    read -p "Enter SSID name (will be prefixed with AP_): " SSID
     read -p "Enter Wi-Fi password (default 'chilipepperlabs'): " PASSWORD
     PASSWORD=${PASSWORD:-chilipepperlabs}
     
@@ -204,16 +206,6 @@ configure_sta_mode() {
     # Configure dhcpcd.conf
     WLAN_IP="dynamic"  # wlan0 will use DHCP in STA mode
     configure_dhcpcd
-    
-    # Configure iptables for routing
-    log "Configuring iptables for STA mode..."
-    sudo iptables -A FORWARD -i eth0 -o wlan0 -j ACCEPT
-    sudo iptables -A FORWARD -i wlan0 -o eth0 -m state --state RELATED,ESTABLISHED -j ACCEPT
-    sudo iptables -t nat -A POSTROUTING -o wlan0 -j MASQUERADE
-    
-    # Save iptables rules
-    sudo netfilter-persistent save
-    log "iptables configured for STA mode."
 
     # Enable IP forwarding
     configure_iptables
