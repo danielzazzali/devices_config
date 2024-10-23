@@ -26,6 +26,25 @@ install_packages() {
     log "Packages installed."
 }
 
+# Function to calculate DHCP range based on IP and mask
+calculate_dhcp_range() {
+    local ip=$1
+    local mask=$2
+
+    IFS='.' read -r i1 i2 i3 i4 <<< "$ip"
+    local host_bits=$(( 32 - mask ))
+
+    # Calculate the range offset
+    local offset=$(( 2 ** host_bits - 50 ))
+
+    # Calculate the start of the range by adding 10 to the host part of the IP
+    local start_host=$(( i4 + 10 ))
+    local end_host=$(( start_host + 40 ))
+
+    # Build DHCP range
+    echo "$i1.$i2.$i3.$start_host,$i1.$i2.$i3.$end_host"
+}
+
 # Function to configure dhcpcd.conf for both AP and STA modes
 configure_dhcpcd() {
     log "Configuring dhcpcd.conf..."
@@ -156,12 +175,10 @@ configure_ap_mode() {
     read -p "Enter the subnet mask for eth0 (default 24): " ETH_MASK
     ETH_MASK=${ETH_MASK:-24}
 
-    read -p "Enter the DHCP range for wlan0 (default 10.0.0.10,10.0.0.30): " WLAN_RANGE
-    WLAN_RANGE=${WLAN_RANGE:-10.0.0.10,10.0.0.30}
-    
-    read -p "Enter the DHCP range for eth0 (default 11.0.0.10,11.0.0.100): " ETH_RANGE
-    ETH_RANGE=${ETH_RANGE:-11.0.0.10,11.0.0.100}
-    
+    # Calculate DHCP ranges
+    WLAN_RANGE=$(calculate_dhcp_range $WLAN_IP $WLAN_MASK)
+    ETH_RANGE=$(calculate_dhcp_range $ETH_IP $ETH_MASK)
+
     # Configure dhcpcd.conf
     configure_dhcpcd
     
@@ -203,9 +220,18 @@ configure_sta_mode() {
     read -p "Enter the IP address for eth0 (default 12.0.0.1): " ETH_IP
     ETH_IP=${ETH_IP:-12.0.0.1}
 
+    read -p "Enter the subnet mask for eth0 (default 24): " ETH_MASK
+    ETH_MASK=${ETH_MASK:-24}
+
+    # Calculate DHCP range for eth0 in STA mode
+    ETH_RANGE=$(calculate_dhcp_range $ETH_IP $ETH_MASK)
+
     # Configure dhcpcd.conf
     WLAN_IP="dynamic"  # wlan0 will use DHCP in STA mode
     configure_dhcpcd
+
+    # Configure dnsmasq for DHCP (if needed)
+    configure_dnsmasq
 
     # Enable IP forwarding
     configure_iptables
