@@ -22,7 +22,6 @@ install_packages() {
     log "Installing required packages..."
     echo iptables-persistent iptables-persistent/autosave_v4 boolean true | sudo debconf-set-selections
     echo iptables-persistent iptables-persistent/autosave_v6 boolean true | sudo debconf-set-selections
-    sudo apt-get update
     sudo apt-get install -y hostapd dnsmasq iptables-persistent dhcpcd5 iw
     log "Packages installed."
 }
@@ -45,12 +44,12 @@ require dhcp_server_identifier
 slaac private
 
 interface eth0
-static ip_address=$ETH_IP/24
+static ip_address=$ETH_IP/$ETH_MASK
 static routers=$ETH_IP
 static domain_name_servers=1.1.1.1
 
 interface wlan0
-static ip_address=$WLAN_IP/24
+static ip_address=$WLAN_IP/$WLAN_MASK
 nohook wpa_supplicant
 EOL
     log "dhcpcd.conf configured with eth0 IP: $ETH_IP and wlan0 IP: $WLAN_IP."
@@ -122,16 +121,14 @@ enable_services() {
     log "Services enabled."
 }
 
-# Function to restart services and reboot
-restart_services() {
-    log "Restarting services..."
-    sudo systemctl restart dnsmasq.service
-    sudo systemctl restart dhcpcd.service
-    sudo systemctl restart hostapd.service
-    log "Services restarted."
-
-    log "Rebooting the system..."
-    sudo reboot
+# Function to ask for reboot
+ask_reboot() {
+    read -p "Do you want to reboot now? (y/n): " REBOOT
+    if [ "$REBOOT" == "y" ]; then
+        sudo reboot
+    else
+        log "Reboot skipped. Please reboot the system later to apply changes."
+    fi
 }
 
 # Function to configure AP mode
@@ -147,10 +144,16 @@ configure_ap_mode() {
     # Get network details
     read -p "Enter the IP address for wlan0 (default 10.0.0.1): " WLAN_IP
     WLAN_IP=${WLAN_IP:-10.0.0.1}
-    
+
+    read -p "Enter the subnet mask for wlan0 (default 24): " WLAN_MASK
+    WLAN_MASK=${WLAN_MASK:-24}
+
     read -p "Enter the IP address for eth0 (default 11.0.0.1): " ETH_IP
     ETH_IP=${ETH_IP:-11.0.0.1}
     
+    read -p "Enter the subnet mask for eth0 (default 24): " ETH_MASK
+    ETH_MASK=${ETH_MASK:-24}
+
     read -p "Enter the DHCP range for wlan0 (default 10.0.0.10,10.0.0.20): " WLAN_RANGE
     WLAN_RANGE=${WLAN_RANGE:-10.0.0.10,10.0.0.20}
     
@@ -168,7 +171,8 @@ configure_ap_mode() {
     read -p "Enter Wi-Fi password (default 'chilipepperlabs'): " PASSWORD
     PASSWORD=${PASSWORD:-chilipepperlabs}
     
-    read -p "Enter country code (e.g., US or ES for Spain): " COUNTRY
+    read -p "Enter country code (default 'US'): " COUNTRY
+    COUNTRY=${COUNTRY:-US}
     
     # Configure hostapd
     configure_hostapd
@@ -179,8 +183,8 @@ configure_ap_mode() {
     # Enable necessary services
     enable_services
 
-    # Restart services and reboot
-    restart_services
+    # Ask for reboot
+    ask_reboot
 }
 
 # Function to configure STA mode
@@ -217,8 +221,8 @@ configure_sta_mode() {
     # Enable necessary services
     enable_services
 
-    # Restart services and reboot
-    restart_services
+    # Ask for reboot
+    ask_reboot
 }
 
 # Main menu
