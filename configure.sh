@@ -78,14 +78,24 @@ EOL
 configure_dnsmasq() {
     log "Configuring dnsmasq..."
     sudo mv /etc/dnsmasq.conf /etc/dnsmasq.conf.orig
-    sudo bash -c "cat > /etc/dnsmasq.conf" <<EOL
+
+    # Check if we're in AP or STA mode
+    if [ "$MODE" == "AP" ]; then
+        sudo bash -c "cat > /etc/dnsmasq.conf" <<EOL
 interface=eth0                   
 dhcp-range=$ETH_RANGE,24h 
 
 interface=wlan0  
 dhcp-range=$WLAN_RANGE,24h
 EOL
-    log "dnsmasq configured for DHCP on eth0: $ETH_RANGE and wlan0: $WLAN_RANGE."
+        log "dnsmasq configured for DHCP on eth0: $ETH_RANGE and wlan0: $WLAN_RANGE."
+    else
+        sudo bash -c "cat > /etc/dnsmasq.conf" <<EOL
+interface=eth0                   
+dhcp-range=$ETH_RANGE,24h 
+EOL
+        log "dnsmasq configured for DHCP on eth0: $ETH_RANGE (STA mode)."
+    fi
 }
 
 # Function to configure hostapd
