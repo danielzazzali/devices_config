@@ -143,7 +143,7 @@ configure_iptables() {
     sudo iptables -t nat -A POSTROUTING -o wlan0 -j MASQUERADE || error_exit "Failed to add iptables rule POSTROUTING"
 
     # Save iptables rules
-    sudo netfilter-persistent save || error_exit "Failed to save iptables rules"
+    sudo netfilter-persistent save || log "Failed to save iptables rules"
     log "IP forwarding enabled and iptables rules configured."
 }
 
@@ -180,19 +180,19 @@ EOL
         sudo bash -c "echo ' network $WLAN_IP/$WLAN_MASK area 0' >> /etc/frr/frr.conf" || error_exit "Failed to configure OSPF for wlan0"
     fi
 
-    sudo systemctl restart frr || error_exit "Failed to restart FRR"
+    sudo systemctl restart frr || log "Failed to restart FRR"
     log "FRR configured and restarted."
 }
 
 # Function to enable all necessary services
 enable_services() {
     log "Enabling necessary services..."
-    sudo systemctl unmask hostapd.service || error_exit "Failed to unmask hostapd.service"
-    sudo systemctl enable hostapd.service || error_exit "Failed to enable hostapd.service"
-    sudo systemctl enable dnsmasq.service || error_exit "Failed to enable dnsmasq.service"
-    sudo systemctl enable dhcpcd.service || error_exit "Failed to enable dhcpcd.service"
-    sudo systemctl enable iptables-persistent || error_exit "Failed to enable iptables-persistent"
-    sudo systemctl enable frr || error_exit "Failed to enable FRR"
+    sudo systemctl unmask hostapd.service || log "Failed to unmask hostapd.service"
+    sudo systemctl enable hostapd.service || log "Failed to enable hostapd.service"
+    sudo systemctl enable dnsmasq.service || log "Failed to enable dnsmasq.service"
+    sudo systemctl enable dhcpcd.service || log "Failed to enable dhcpcd.service"
+    sudo systemctl enable iptables-persistent || log "Failed to enable iptables-persistent"
+    sudo systemctl enable frr || log "Failed to enable FRR"
     log "Services enabled."
 }
 
