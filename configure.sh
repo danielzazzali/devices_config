@@ -7,13 +7,18 @@ log() {
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"
 }
 
+error_exit() {
+    log "ERROR: $1"
+    exit 1
+}
+
 # Function to disable unnecessary services
 disable_services() {
     log "Disabling unnecessary services..."
-    sudo systemctl stop NetworkManager-wait-online.service
-    sudo systemctl disable NetworkManager-wait-online.service
-    sudo systemctl stop systemd-networkd
-    sudo systemctl disable systemd-networkd
+    sudo systemctl stop NetworkManager-wait-online.service || error_exit "Failed to stop NetworkManager-wait-online.service"
+    sudo systemctl disable NetworkManager-wait-online.service || error_exit "Failed to disable NetworkManager-wait-online.service"
+    sudo systemctl stop systemd-networkd || error_exit "Failed to stop systemd-networkd"
+    sudo systemctl disable systemd-networkd || error_exit "Failed to disable systemd-networkd"
     log "Services disabled."
 }
 
@@ -22,7 +27,8 @@ install_packages() {
     log "Installing required packages..."
     echo iptables-persistent iptables-persistent/autosave_v4 boolean true | sudo debconf-set-selections
     echo iptables-persistent iptables-persistent/autosave_v6 boolean true | sudo debconf-set-selections
-    sudo apt-get install -y hostapd dnsmasq iptables-persistent dhcpcd5 iw
+    sudo apt-get update || error_exit "Failed to update package list"
+    sudo apt-get install -y hostapd dnsmasq iptables-persistent dhcpcd5 iw frr || error_exit "Failed to install packages"
     log "Packages installed."
 }
 
@@ -48,7 +54,7 @@ calculate_dhcp_range() {
 # Function to configure dhcpcd.conf for both AP and STA modes
 configure_dhcpcd() {
     log "Configuring dhcpcd.conf..."
-    sudo bash -c "cat > /etc/dhcpcd.conf" <<EOL
+    sudo bash -c "cat > /etc/dhcpcd.conf" <<EOL || error_exit "Failed to configure dhcpcd.conf"
 duid
 persistent
 vendorclassid
@@ -77,22 +83,22 @@ EOL
 # Function to configure dnsmasq for DHCP
 configure_dnsmasq() {
     log "Configuring dnsmasq..."
-    sudo mv /etc/dnsmasq.conf /etc/dnsmasq.conf.orig
+    sudo mv /etc/dnsmasq.conf /etc/dnsmasq.conf.orig || error_exit "Failed to backup dnsmasq.conf"
 
     # Check if we're in AP or STA mode
     if [ "$MODE" == "AP" ]; then
-        sudo bash -c "cat > /etc/dnsmasq.conf" <<EOL
-interface=eth0                   
-dhcp-range=$ETH_RANGE,24h 
+        sudo bash -c "cat > /etc/dnsmasq.conf" <<EOL || error_exit "Failed to configure dnsmasq for AP mode"
+interface=eth0
+dhcp-range=$ETH_RANGE,24h
 
-interface=wlan0  
+interface=wlan0
 dhcp-range=$WLAN_RANGE,24h
 EOL
         log "dnsmasq configured for DHCP on eth0: $ETH_RANGE and wlan0: $WLAN_RANGE."
     else
-        sudo bash -c "cat > /etc/dnsmasq.conf" <<EOL
-interface=eth0                   
-dhcp-range=$ETH_RANGE,24h 
+        sudo bash -c "cat > /etc/dnsmasq.conf" <<EOL || error_exit "Failed to configure dnsmasq for STA mode"
+interface=eth0
+dhcp-range=$ETH_RANGE,24h
 EOL
         log "dnsmasq configured for DHCP on eth0: $ETH_RANGE (STA mode)."
     fi
@@ -101,7 +107,7 @@ EOL
 # Function to configure hostapd
 configure_hostapd() {
     log "Configuring hostapd..."
-    sudo bash -c "cat > /etc/hostapd/hostapd.conf" <<EOL
+    sudo bash -c "cat > /etc/hostapd/hostapd.conf" <<EOL || error_exit "Failed to configure hostapd"
 interface=wlan0
 driver=nl80211
 ssid=AP_$SSID
@@ -119,36 +125,74 @@ ieee80211n=1
 wmm_enabled=1
 EOL
 
-    sudo sed -i 's|#DAEMON_CONF=""|DAEMON_CONF="/etc/hostapd/hostapd.conf"|' /etc/default/hostapd
-    sudo sed -i '/\[Service\]/a ExecStartPre=/bin/sleep 5' /lib/systemd/system/hostapd.service
+    sudo sed -i 's|#DAEMON_CONF=""|DAEMON_CONF="/etc/hostapd/hostapd.conf"|' /etc/default/hostapd || error_exit "Failed to update /etc/default/hostapd"
+    sudo sed -i '/\[Service\]/a ExecStartPre=/bin/sleep 5' /lib/systemd/system/hostapd.service || error_exit "Failed to update hostapd.service"
     log "hostapd configured with SSID: AP_$SSID."
 }
 
 # Function to enable IP forwarding and configure iptables
 configure_iptables() {
     log "Enabling IP forwarding and configuring iptables..."
-    echo "net.ipv4.ip_forward=1" | sudo tee -a /etc/sysctl.conf
-    sudo sysctl -p
+    echo "net.ipv4.ip_forward=1" | sudo tee -a /etc/sysctl.conf || error_exit "Failed to enable IP forwarding"
+    sudo sysctl -p || error_exit "Failed to reload sysctl configuration"
 
     # Add iptables rules
     log "Configuring iptables rules..."
-    sudo iptables -A FORWARD -i eth0 -o wlan0 -j ACCEPT
-    sudo iptables -A FORWARD -i wlan0 -o eth0 -m state --state RELATED,ESTABLISHED -j ACCEPT
-    sudo iptables -t nat -A POSTROUTING -o wlan0 -j MASQUERADE
+    sudo iptables -A FORWARD -i eth0 -o wlan0 -j ACCEPT || error_exit "Failed to add iptables rule FORWARD eth0 to wlan0"
+    sudo iptables -A FORWARD -i wlan0 -o eth0 -m state --state RELATED,ESTABLISHED -j ACCEPT || error_exit "Failed to add iptables rule FORWARD wlan0 to eth0"
+    sudo iptables -t nat -A POSTROUTING -o wlan0 -j MASQUERADE || error_exit "Failed to add iptables rule POSTROUTING"
 
     # Save iptables rules
-    sudo netfilter-persistent save
+    sudo netfilter-persistent save || error_exit "Failed to save iptables rules"
     log "IP forwarding enabled and iptables rules configured."
+}
+
+# Function to configure FRR for dynamic routing
+configure_frr() {
+    log "Configuring FRR for dynamic routing..."
+    sudo bash -c "cat > /etc/frr/daemons" <<EOL || error_exit "Failed to configure FRR daemons"
+zebra=yes
+bgpd=no
+ospfd=yes
+ospf6d=no
+ripd=no
+ripngd=no
+isisd=no
+pimd=no
+ldpd=no
+nhrpd=no
+eigrpd=no
+babeld=no
+sharpd=no
+pbrd=no
+bfdd=no
+fabricd=no
+vrrpd=no
+EOL
+
+    sudo bash -c "cat > /etc/frr/frr.conf" <<EOL || error_exit "Failed to configure FRR"
+log file /var/log/frr/frr.log
+router ospf
+ network $ETH_IP/$ETH_MASK area 0
+EOL
+
+    if [ "$MODE" == "AP" ]; then
+        sudo bash -c "echo ' network $WLAN_IP/$WLAN_MASK area 0' >> /etc/frr/frr.conf" || error_exit "Failed to configure OSPF for wlan0"
+    fi
+
+    sudo systemctl restart frr || error_exit "Failed to restart FRR"
+    log "FRR configured and restarted."
 }
 
 # Function to enable all necessary services
 enable_services() {
     log "Enabling necessary services..."
-    sudo systemctl unmask hostapd.service
-    sudo systemctl enable hostapd.service
-    sudo systemctl enable dnsmasq.service
-    sudo systemctl enable dhcpcd.service
-    sudo systemctl enable iptables-persistent
+    sudo systemctl unmask hostapd.service || error_exit "Failed to unmask hostapd.service"
+    sudo systemctl enable hostapd.service || error_exit "Failed to enable hostapd.service"
+    sudo systemctl enable dnsmasq.service || error_exit "Failed to enable dnsmasq.service"
+    sudo systemctl enable dhcpcd.service || error_exit "Failed to enable dhcpcd.service"
+    sudo systemctl enable iptables-persistent || error_exit "Failed to enable iptables-persistent"
+    sudo systemctl enable frr || error_exit "Failed to enable FRR"
     log "Services enabled."
 }
 
@@ -156,7 +200,7 @@ enable_services() {
 ask_reboot() {
     read -p "Do you want to reboot now? (y/n): " REBOOT
     if [ "$REBOOT" == "y" ]; then
-        sudo reboot
+        sudo reboot || error_exit "Failed to reboot the system"
     else
         log "Reboot skipped. Please reboot the system later to apply changes."
     fi
@@ -165,7 +209,7 @@ ask_reboot() {
 # Function to configure AP mode
 configure_ap_mode() {
     log "Configuring device in AP mode..."
-    
+
     # Disable unnecessary services
     disable_services
 
@@ -181,7 +225,7 @@ configure_ap_mode() {
 
     read -p "Enter the IP address for eth0 (default 11.0.0.1): " ETH_IP
     ETH_IP=${ETH_IP:-11.0.0.1}
-    
+
     read -p "Enter the subnet mask for eth0 (default 24): " ETH_MASK
     ETH_MASK=${ETH_MASK:-24}
 
@@ -191,23 +235,26 @@ configure_ap_mode() {
 
     # Configure dhcpcd.conf
     configure_dhcpcd
-    
+
     # Configure dnsmasq for DHCP
     configure_dnsmasq
-    
+
     # Get AP settings
     read -p "Enter SSID name (will be prefixed with AP_): " SSID
     read -p "Enter Wi-Fi password (default 'chilipepperlabs'): " PASSWORD
     PASSWORD=${PASSWORD:-chilipepperlabs}
-    
+
     read -p "Enter country code (default 'US'): " COUNTRY
     COUNTRY=${COUNTRY:-US}
-    
+
     # Configure hostapd
     configure_hostapd
 
     # Enable IP forwarding and configure iptables
     configure_iptables
+
+    # Configure FRR for dynamic routing
+    configure_frr
 
     # Enable necessary services
     enable_services
@@ -219,13 +266,13 @@ configure_ap_mode() {
 # Function to configure STA mode
 configure_sta_mode() {
     log "Configuring device in STA mode..."
-    
+
     # Disable unnecessary services
     disable_services
-    
+
     # Install required packages
     install_packages
-    
+
     # Get network details
     read -p "Enter the IP address for eth0 (default 12.0.0.1): " ETH_IP
     ETH_IP=${ETH_IP:-12.0.0.1}
@@ -245,7 +292,10 @@ configure_sta_mode() {
 
     # Enable IP forwarding
     configure_iptables
-    
+
+    # Configure FRR for dynamic routing
+    configure_frr
+
     # Enable necessary services
     enable_services
 
