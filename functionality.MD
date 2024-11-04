@@ -1,4 +1,4 @@
-## Endpoints
+## TODO: Endpoints
 
 Get name of device
 Get current ip (eth0 and wlan0)

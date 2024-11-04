@@ -54,7 +54,8 @@ calculate_dhcp_range() {
 # Function to configure dhcpcd.conf for both AP and STA modes
 configure_dhcpcd() {
     log "Configuring dhcpcd.conf..."
-    sudo bash -c "cat > /etc/dhcpcd.conf" <<EOL || error_exit "Failed to configure dhcpcd.conf"
+    if [ "$MODE" == "AP" ]; then
+        sudo bash -c "cat > /etc/dhcpcd.conf" <<EOL || error_exit "Failed to configure dhcpcd.conf"
 duid
 persistent
 vendorclassid
@@ -74,10 +75,33 @@ static routers=$ETH_IP
 static domain_name_servers=1.1.1.1
 
 interface wlan0
-static ip_address=$WLAN_IP/$WLAN_MASK
 nohook wpa_supplicant
 EOL
-    log "dhcpcd.conf configured with eth0 IP: $ETH_IP and wlan0 IP: $WLAN_IP."
+        log "dhcpcd.conf configured for AP mode with eth0 IP: $ETH_IP and wlan0 IP: $WLAN_IP."
+    else
+        sudo bash -c "cat > /etc/dhcpcd.conf" <<EOL || error_exit "Failed to configure dhcpcd.conf"
+duid
+persistent
+vendorclassid
+
+option domain_name_servers, domain_name, domain_search
+option classless_static_routes
+option interface_mtu
+option host_name
+option rapid_commit
+
+require dhcp_server_identifier
+slaac private
+
+denyinterfaces wlan0
+
+interface eth0
+static ip_address=$ETH_IP/$ETH_MASK
+static routers=$ETH_IP
+static domain_name_servers=1.1.1.1
+EOL
+        log "dhcpcd.conf configured for STA mode with eth0 IP: $ETH_IP."
+    fi
 }
 
 # Function to configure dnsmasq for DHCP
@@ -284,7 +308,6 @@ configure_sta_mode() {
     ETH_RANGE=$(calculate_dhcp_range $ETH_IP $ETH_MASK)
 
     # Configure dhcpcd.conf
-    WLAN_IP="dynamic"  # wlan0 will use DHCP in STA mode
     configure_dhcpcd
 
     # Configure dnsmasq for DHCP (if needed)
@@ -303,6 +326,43 @@ configure_sta_mode() {
     ask_reboot
 }
 
+# Function to install Node.js using nvm
+install_node() {
+    log "Installing Node.js version 22.11 using nvm..."
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash || error_exit "Failed to install nvm"
+    export NVM_DIR="$HOME/.nvm"
+    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" || error_exit "Failed to source nvm"
+    nvm install 22.11 || error_exit "Failed to install Node.js version 22.11"
+    log "Node.js version 22.11 installed."
+}
+
+# Function to install and configure nginx
+install_nginx() {
+    log "Installing and configuring nginx..."
+    sudo apt-get install -y nginx || error_exit "Failed to install nginx"
+    sudo rm /etc/nginx/sites-enabled/default || error_exit "Failed to remove default nginx site"
+    sudo bash -c "cat > /etc/nginx/sites-available/webserver" <<EOL || error_exit "Failed to create nginx configuration"
+server {
+    listen 80;
+    listen [::]:80;
+
+    server_name _;  # Accept any domain
+
+    location / {
+        proxy_pass http://localhost:3000;  # Redirect traffic to port 3000
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_cache_bypass \$http_upgrade;
+    }
+}
+EOL
+    sudo ln -s /etc/nginx/sites-available/webserver /etc/nginx/sites-enabled/ || error_exit "Failed to enable nginx site"
+    sudo systemctl restart nginx || error_exit "Failed to restart nginx"
+    log "nginx installed and configured."
+}
+
 # Main menu
 main() {
     log "Starting device setup..."
@@ -315,6 +375,10 @@ main() {
         log "Invalid mode selected. Exiting."
         exit 1
     fi
+
+    # Install Node.js and nginx
+    install_node
+    install_nginx
 }
 
 # Run the main function
