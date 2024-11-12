@@ -23,3 +23,8 @@ To ensure the proper development and configuration of the web server, consider t
     - It also installs Node.js version 22.11 for the web server.
 
 These points are crucial for the proper setup and functioning of the web server. Ensure to revisit and verify these configurations when resuming development.
+
+
+NEW SCRIPT:
+
+install node 22 with nvm, install git, install nginx, configure nmcli ETH and AP (if motherhub) then create update_nginx_script.sh and service and timer for that, then clone web server and create service to start on boot
