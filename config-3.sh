@@ -6,6 +6,9 @@ YELLOW='\033[0;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
+NGINX_CONF_DEFAULT="/etc/nginx/sites-available/default"
+NGINX_CONF_DEFAULT81="/etc/nginx/sites-available/default81"
+
 # Function to print info logs
 log_info() {
     echo -e "${GREEN}[INFO]${NC} $1"
@@ -19,42 +22,83 @@ log_error() {
 # Function to create nginx default and default81 files for STA mode
 create_nginx_files_sta() {
     log_info "Creating nginx default and default81 files for STA..."
+    
+    # Crear el archivo "default81" para redirigir al puerto 8000
+    cat <<'EOL' > $NGINX_CONF_DEFAULT81
+server {
+    listen 81;
+    server_name localhost;
 
-    # default81 redirects to localhost:8000
-    echo -e "server {\n    listen 80;\n    server_name localhost;\n    location / {\n        proxy_pass http://localhost:8000/;\n    }\n}" | sudo tee /etc/nginx/sites-available/default81 > /dev/null
+    location / {
+        proxy_pass http://localhost:8000;
 
-    # default will remain empty for later configuration
-    echo -e "" | sudo tee /etc/nginx/sites-available/default > /dev/null
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+}
+EOL
+
+    cat <<'EOL' > $NGINX_CONF_DEFAULT
+EOL
+
+    if [ $? -eq 0 ]; then
+        log_info "Nginx configuration files created successfully:"
+        log_info " - $NGINX_CONF_DEFAULT81"
+        log_info " - $NGINX_CONF_DEFAULT"
+    else
+        log_error "Failed to create Nginx configuration files"
+        return 1
+    fi
+
+    log_info "Reloading Nginx to apply the changes..."
+    sudo systemctl reload nginx
+
+    if [ $? -eq 0 ]; then
+        log_info "Nginx reloaded successfully"
+    else
+        log_error "Failed to reload Nginx"
+        return 1
+    fi
 }
 
-# Function to create systemd service to update nginx default with eth0 IP
-create_nginx_ip_update_service() {
-    log_info "Creating systemd service to update default with eth0 IP every 20 seconds..."
 
-    sudo tee /etc/systemd/system/update_nginx_ip.service > /dev/null <<EOF
-[Unit]
-Description=Update Nginx Proxy Pass to eth0 IP
-
-[Service]
-Type=simple
-ExecStart=/bin/bash -c 'IP=$(arp -n eth0 | grep -oP "(?<=\d+\.\d+\.\d+\.\d+)\s+\d+" | awk "{print \$1}") && sed -i "s|proxy_pass http://localhost:8000/;|proxy_pass http://\$IP:8000/;|" /etc/nginx/sites-available/default'
-Restart=always
-RestartSec=20s
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-    # Enable and start the service
-    sudo systemctl enable update_nginx_ip.service
-    sudo systemctl start update_nginx_ip.service
-}
-
-# Function to create nginx default file for AP mode
 create_nginx_file_ap() {
     log_info "Creating nginx default file for AP..."
 
-    echo -e "server {\n    listen 80;\n    server_name localhost;\n    location / {\n        proxy_pass http://localhost:8000/;\n    }\n}" | sudo tee /etc/nginx/sites-available/default > /dev/null
+    cat <<'EOL' > $NGINX_CONF_PATH_DEFAULT
+server {
+    listen 80;
+    server_name _;
+
+    location / {
+        proxy_pass http://localhost:8000;
+        
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+}
+EOL
+
+    if [ $? -eq 0 ]; then
+        log_info "Nginx configuration file created successfully at $NGINX_CONF_PATH_DEFAULT"
+    else
+        log_error "Failed to create Nginx configuration file"
+        return 1
+    fi
+
+    log_info "Reloading Nginx to apply the changes..."
+    sudo systemctl reload nginx
+
+    if [ $? -eq 0 ]; then
+        log_info "Nginx reloaded successfully"
+    else
+        log_error "Failed to reload Nginx"
+        return 1
+    fi
 }
 
 # Main logic to handle file creation based on mode
