@@ -141,32 +141,6 @@ configure_sta_mode() {
     log_info "Station (STA) configuration completed successfully."
 }
 
-# Function to prompt user for mode (AP or STA) and save it
-configure_mode() {
-    while true; do
-        echo -e "${YELLOW}Would you like to configure the Raspberry Pi as an Access Point (AP) or Station (STA)?${NC}"
-        echo -e "${YELLOW}Type 'AP' for Access Point or 'STA' for Station:${NC}"
-        read -p "> " mode_choice
-
-        # Convert choice to uppercase for consistency
-        mode_choice=$(echo "$mode_choice" | tr '[:lower:]' '[:upper:]')
-
-        if [[ "$mode_choice" == "AP" || "$mode_choice" == "STA" ]]; then
-            log_info "You selected $mode_choice mode."
-            echo "$mode_choice" > $mode_file
-            log_info "Mode configuration saved to $mode_file."
-            
-            # Print the content of mode_file to ensure the mode was saved correctly
-            log_info "Contents of $mode_file:"
-            cat $mode_file
-            
-            break
-        else
-            log_warning "Invalid input. Please enter 'AP' or 'STA'."
-        fi
-    done
-}
-
 # Main function to orchestrate the configuration process
 main() {
     log_info "Starting installation script for Raspberry Pi."
