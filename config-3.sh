@@ -8,6 +8,7 @@ NC='\033[0m' # No Color
 
 NGINX_CONF_DEFAULT="/etc/nginx/sites-available/default"
 NGINX_CONF_DEFAULT81="/etc/nginx/sites-available/default81"
+NGINX_CONF_ENABLED="/etc/nginx/sites-enabled"
 
 # Function to print info logs
 log_info() {
@@ -22,7 +23,7 @@ log_error() {
 # Function to create nginx default and default81 files for STA mode
 create_nginx_files_sta() {
     log_info "Creating nginx default and default81 files for STA..."
-    
+
     # Crear el archivo "default81" para redirigir al puerto 8000
     cat <<'EOL' > $NGINX_CONF_DEFAULT81
 server {
@@ -40,9 +41,12 @@ server {
 }
 EOL
 
+    # Crear el archivo "default" vacío para futuras configuraciones
     cat <<'EOL' > $NGINX_CONF_DEFAULT
+# Este archivo está vacío por ahora y se puede configurar en el futuro según sea necesario.
 EOL
 
+    # Comprobar si los archivos se crearon correctamente
     if [ $? -eq 0 ]; then
         log_info "Nginx configuration files created successfully:"
         log_info " - $NGINX_CONF_DEFAULT81"
@@ -52,9 +56,26 @@ EOL
         return 1
     fi
 
+    # Crear los enlaces simbólicos para habilitar los archivos de configuración
+    log_info "Creating symbolic links to enable the configurations..."
+    sudo ln -sf $NGINX_CONF_DEFAULT81 $NGINX_CONF_ENABLED/default81
+    sudo ln -sf $NGINX_CONF_DEFAULT $NGINX_CONF_ENABLED/default
+
+    # Verificar si los enlaces se crearon correctamente
+    if [ $? -eq 0 ]; then
+        log_info "Symbolic links created successfully:"
+        log_info " - $NGINX_CONF_ENABLED/default81"
+        log_info " - $NGINX_CONF_ENABLED/default"
+    else
+        log_error "Failed to create symbolic links"
+        return 1
+    fi
+
+    # Recargar Nginx para aplicar los cambios
     log_info "Reloading Nginx to apply the changes..."
     sudo systemctl reload nginx
 
+    # Verificar si Nginx se recargó correctamente
     if [ $? -eq 0 ]; then
         log_info "Nginx reloaded successfully"
     else
@@ -63,11 +84,11 @@ EOL
     fi
 }
 
-
+# Función para crear el archivo de configuración para AP
 create_nginx_file_ap() {
     log_info "Creating nginx default file for AP..."
 
-    cat <<'EOL' > $NGINX_CONF_PATH_DEFAULT
+    cat <<'EOL' > $NGINX_CONF_DEFAULT
 server {
     listen 80;
     server_name _;
@@ -83,16 +104,23 @@ server {
 }
 EOL
 
+    # Comprobar si el archivo se creó correctamente
     if [ $? -eq 0 ]; then
-        log_info "Nginx configuration file created successfully at $NGINX_CONF_PATH_DEFAULT"
+        log_info "Nginx configuration file created successfully at $NGINX_CONF_DEFAULT"
     else
         log_error "Failed to create Nginx configuration file"
         return 1
     fi
 
+    # Crear enlace simbólico para habilitar la configuración de AP
+    log_info "Creating symbolic link to enable the AP configuration..."
+    sudo ln -sf $NGINX_CONF_DEFAULT $NGINX_CONF_ENABLED/default
+
+    # Recargar Nginx para aplicar los cambios
     log_info "Reloading Nginx to apply the changes..."
     sudo systemctl reload nginx
 
+    # Verificar si Nginx se recargó correctamente
     if [ $? -eq 0 ]; then
         log_info "Nginx reloaded successfully"
     else
