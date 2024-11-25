@@ -6,6 +6,10 @@ GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 NC='\033[0m' # No Color
 
+# Variables for user choices (initialized as empty for now)
+mode_choice=""
+mode_file="/etc/rpi_mode_config"
+
 # Function to print logs
 log_info() {
     echo -e "${GREEN}[INFO]${NC} $1"
@@ -78,8 +82,13 @@ while true; do
 
     if [[ "$mode_choice" == "AP" || "$mode_choice" == "STA" ]]; then
         log_info "You selected $mode_choice mode."
-        echo "$mode_choice" > /etc/rpi_mode_config
-        log_info "Mode configuration saved to /etc/rpi_mode_config."
+        echo "$mode_choice" > $mode_file
+        log_info "Mode configuration saved to $mode_file."
+        
+        # Print the content of mode_file to ensure the mode was saved correctly
+        log_info "Contents of $mode_file:"
+        cat $mode_file
+        
         break
     else
         log_warning "Invalid input. Please enter 'AP' or 'STA'."
