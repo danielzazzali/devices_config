@@ -1,11 +1,15 @@
+#!/bin/bash
+
+SCRIPT_PATH="/home/capstone/update_nginx_ip.sh"
+NGINX_CONF_PATH_DEFAULT="/etc/nginx/sites-available/default"
+SERVICE_PATH="/etc/systemd/system/nginx-ip-update.service"
+TIMER_PATH="/etc/systemd/system/nginx-ip-update.timer"
+ETH_INTERFACE="eth0"
+
 # Function to set up the Nginx IP update script and systemd service
 setup_nginx_ip_update() {
     # Variables
-    SCRIPT_PATH="/usr/local/bin/update_nginx_ip.sh"
-    NGINX_CONF_PATH="/etc/nginx/sites-available/default"
-    SERVICE_PATH="/etc/systemd/system/nginx-ip-update.service"
-    TIMER_PATH="/etc/systemd/system/nginx-ip-update.timer"
-    INTERFACE="eth0"
+
 
     # Colors for logs
     GREEN='\033[0;32m'
@@ -30,34 +34,22 @@ setup_nginx_ip_update() {
 #!/bin/bash
 
 # Path to the Nginx configuration file
-NGINX_CONF_PATH="/etc/nginx/sites-available/default"
+NGINX_CONF_PATH_DEFAULT="/etc/nginx/sites-available/default"
 
 # Network interface to check for connected devices (e.g., eth0)
-INTERFACE="eth0"
+ETH_INTERFACE="eth0"
 
-# Step 1: Ping the device to force ARP table refresh
-# Get the MAC address of the device connected to eth0 (ignoring incomplete entries)
-TARGET_MAC=$(arp -n -i $INTERFACE | grep -v "incomplete" | awk '{print $3}' | head -n 1)
-
-if [ -z "$TARGET_MAC" ]; then
-    echo "No connected device found on $INTERFACE."
-    exit 1
-fi
-
-# Use the MAC address to ping the device, forcing ARP table update
-ping -c 1 -I $INTERFACE $TARGET_MAC > /dev/null
-
-# Step 2: Get the IP address of the device from the ARP cache (after refreshing it with ping)
-CONNECTED_IP=$(arp -n -i $INTERFACE | grep -v "incomplete" | grep -v "Address" | awk '{print $1}' | head -n 1)
+# Get the IP address of the device connected to the interface eth0
+CONNECTED_IP=$(arp -i $ETH_INTERFACE | grep -v "incomplete" | grep -v "Address" | awk '{print $1}' | head -n 1)
 
 # Check if a valid IP was found
 if [ -z "$CONNECTED_IP" ]; then
-    echo "No valid IP found for the device connected to $INTERFACE."
+    echo "No device found connected to interface $ETH_INTERFACE."
     exit 1
 fi
 
-# Step 3: Update the Nginx configuration with the found IP address
-cat <<EOL > $NGINX_CONF_PATH
+# Update the Nginx configuration with the found IP address
+cat <<EOL > $NGINX_CONF_PATH_DEFAULT
 server {
     listen 80;
     listen [::]:80;
@@ -84,7 +76,7 @@ else
     exit 1
 fi
 
-# Step 4: Reload Nginx to apply the changes
+# Reload Nginx to apply the changes
 sudo systemctl reload nginx
 
 # Verify if Nginx was reloaded successfully
