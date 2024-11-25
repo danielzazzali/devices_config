@@ -55,7 +55,20 @@ else
     log_warning "Skipped installing nginx and git."
 fi
 
-# Step 3: Prompt user for AP or STA configuration
+# Step 3: Prompt user for WLAN country selection
+log_info "You need to select the country for WLAN settings to ensure proper Wi-Fi operation."
+
+# Instructions to the user
+echo -e "${YELLOW}Please follow these steps to select your WLAN country:${NC}"
+echo -e "${YELLOW}1. You will now be prompted to select your country in the next screen.${NC}"
+echo -e "${YELLOW}2. This will configure the WLAN settings for your Raspberry Pi.${NC}"
+echo -e "${YELLOW}3. After that, the 'raspi-config' menu will open, where you can configure other settings.${NC}"
+
+# Step 4: Open raspi-config for the user to finalize settings
+log_info "Opening 'raspi-config' for WLAN country selection and other configurations."
+sudo raspi-config
+
+# Step 5: Prompt user for AP or STA configuration
 while true; do
     echo -e "${YELLOW}Would you like to configure the Raspberry Pi as an Access Point (AP) or Station (STA)?${NC}"
     echo -e "${YELLOW}Type 'AP' for Access Point or 'STA' for Station:${NC}"
