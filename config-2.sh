@@ -31,22 +31,17 @@ configure_ap_mode() {
 
     # Create a bridge connection between wlan0 and eth0
     log_info "Creating bridge connection (br0) between wlan0 and eth0..."
-    sudo nmcli connection add type bridge con-name br0 ifname br0 autoconnect yes
-    sudo nmcli connection add type ethernet con-name eth0 ifname eth0 autoconnect yes
-    sudo nmcli connection modify br0 ipv4.method auto
-    sudo nmcli connection up eth0
-    sudo nmcli connection up br0
+    sudo nmcli connection add con-name 'BR0' ifname br0 type bridge ipv4.method auto ipv6.method disabled connection.autoconnect yes stp no
+    sudo nmcli connection add con-name 'ETH' ifname eth0 type bridge-slave master 'BR0' connection.autoconnect yes
 
     # Set up the Wi-Fi Access Point with SSID ChilipepperLABS and password
     log_info "Setting up Wi-Fi Access Point with SSID ChilipepperLABS..."
-    sudo nmcli connection add type wifi ifname wlan0 con-name "ChilipepperLABS" autoconnect yes ssid "ChilipepperLABS"
-    sudo nmcli connection modify "ChilipepperLABS" wifi-sec.key-mgmt wpa-psk
-    sudo nmcli connection modify "ChilipepperLABS" wifi-sec.psk "12345678"
-    
-    # Assign the bridge an IP from the router via eth0
-    log_info "Bridge will obtain an IP from the router via eth0."
-    sudo nmcli connection modify br0 ipv4.method auto
-    sudo nmcli connection up br0
+
+    sudo nmcli connection add con-name 'AP' ifname wlan0 type wifi slave-type bridge master 'BR0' wifi.band bg wifi.mode ap wifi.ssid "ChilipepperLABS" wifi-sec.key-mgmt wpa-psk wifi-sec.psk "12345678" autoconnect yes
+
+    sudo nmcli connection up ETH
+    sudo nmcli connection up AP
+    sudo nmcli connection up BR0
 
     log_info "Access Point (AP) configuration completed successfully."
 }
@@ -57,11 +52,11 @@ configure_sta_mode() {
 
     # Create WLAN connection to the Access Point ChilipepperLABS
     log_info "Creating WLAN connection to SSID ChilipepperLABS..."
-    sudo nmcli connection add type wifi con-name WLAN ifname wlan0 ssid "ChilipepperLABS" wifi-sec.key-mgmt wpa-psk wifi-sec.psk "12345678" autoconnect yes
+    sudo nmcli connection add type wifi con-name 'WLAN' ifname wlan0 ssid "ChilipepperLABS" wifi-sec.key-mgmt wpa-psk wifi-sec.psk "12345678" autoconnect yes
 
     # Create Ethernet connection with static IP in the 192.168.1.0/24 network for eth0
     log_info "Creating Ethernet connection with static IP in 192.168.1.0/24 network..."
-    sudo nmcli connection add type ethernet con-name ETH ifname eth0 ipv4.addresses "192.168.1.1/24" ipv4.gateway "192.168.1.1" ipv4.method manual autoconnect yes
+    sudo nmcli connection add type ethernet con-name 'ETH' ifname eth0 ipv4.addresses "192.168.1.1/24" ipv4.gateway "192.168.1.1" ipv4.method manual autoconnect yes
     
     # Bring up both connections
     sudo nmcli connection up WLAN
