@@ -28,16 +28,20 @@ create_nginx_files_sta() {
     cat <<'EOL' > $NGINX_CONF_DEFAULT81
 server {
     listen 81;
-    server_name localhost;
+    listen [::]:81;
+
+    server_name _;
 
     location / {
-        proxy_pass http://localhost:8000;
-
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_pass http://localhost:8000/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+        add_header Cache-Control 'no-store, no-cache';
     }
+
 }
 EOL
 
@@ -91,17 +95,22 @@ create_nginx_file_ap() {
     cat <<'EOL' > $NGINX_CONF_DEFAULT
 server {
     listen 80;
+    listen [::]:80;
+
     server_name _;
 
     location / {
-        proxy_pass http://localhost:8000;
-        
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_pass http://localhost:8000/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+        add_header Cache-Control 'no-store, no-cache';
     }
+
 }
+
 EOL
 
     # Comprobar si el archivo se creó correctamente
