@@ -258,10 +258,8 @@ EOL
     fi
 }
 
-
-# Function to set up the Nginx IP update script and systemd service
-setup_nginx_ip_update_sta() {
-    # Step 1: Create the Nginx IP update script
+# Function to create the Nginx IP update script
+create_nginx_ip_update_script() {
     log_info "Creating the Nginx IP update script..."
 
     cat << 'EOF' > "$SCRIPT_PATH"
@@ -302,30 +300,16 @@ server {
 }
 EOL
 
-# Check if the file was updated successfully
-if [ $? -eq 0 ]; then
-    echo "Nginx configuration file updated successfully with IP: $CONNECTED_IP"
-else
-    echo "Error updating the Nginx configuration file."
-    exit 1
-fi
-
 # Reload Nginx to apply the changes
-sudo systemctl reload nginx
-
-# Verify if Nginx was reloaded successfully
-if [ $? -eq 0 ]; then
-    echo "Nginx reloaded successfully."
-else
-    echo "Error reloading Nginx."
-    exit 1
-fi
+sudo systemctl reload nginx || exit 1
 EOF
 
     # Make the script executable
     chmod +x "$SCRIPT_PATH"
+}
 
-    # Step 2: Create the systemd service unit file
+# Function to create the systemd service unit file
+create_systemd_service() {
     log_info "Creating the systemd service unit file..."
 
     cat << EOF > "$SERVICE_PATH"
@@ -340,8 +324,10 @@ RestartSec=30s
 [Install]
 WantedBy=multi-user.target
 EOF
+}
 
-    # Step 3: Create the systemd timer unit file
+# Function to create the systemd timer unit file
+create_systemd_timer() {
     log_info "Creating the systemd timer unit file..."
 
     cat << EOF > "$TIMER_PATH"
@@ -355,25 +341,36 @@ OnUnitActiveSec=30s
 [Install]
 WantedBy=timers.target
 EOF
+}
 
-    # Step 4: Reload systemd to recognize the new service and timer
+# Function to reload systemd
+reload_systemd() {
     log_info "Reloading systemd to recognize the new service and timer..."
     sudo systemctl daemon-reload
+}
 
-    # Step 5: Enable and start the systemd service and timer
+# Function to enable and start the systemd timer
+enable_and_start_timer() {
     log_info "Enabling and starting the systemd timer..."
     sudo systemctl enable nginx-ip-update.timer
     sudo systemctl start nginx-ip-update.timer
+}
 
-    # Step 6: Verify that the service and timer are running
+# Function to verify the status of the service and timer
+verify_service_and_timer() {
     log_info "Verifying the status of the service and timer..."
-
-    # Check the status of the timer
     sudo systemctl status nginx-ip-update.timer
-
-    # Check the status of the service
     sudo systemctl status nginx-ip-update.service
+}
 
+# Main function to set up the Nginx IP update process
+setup_nginx_ip_update_sta() {
+    create_nginx_ip_update_script
+    create_systemd_service
+    create_systemd_timer
+    reload_systemd
+    enable_and_start_timer
+    verify_service_and_timer
     log_info "Setup complete! The system is now configured to update the Nginx IP every 30 seconds."
 }
 
