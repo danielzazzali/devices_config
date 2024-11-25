@@ -7,8 +7,11 @@ YELLOW='\033[0;33m'
 NC='\033[0m' # No Color
 
 # Variables for user choices (initialized as empty for now)
-mode_choice=""
-mode_file="/etc/rpi_mode_config"
+MODE_CHOICE=""
+MODE_FILE="/etc/rpi_mode_config"
+NGINX_CONF_DEFAULT="/etc/nginx/sites-available/default"
+NGINX_CONF_DEFAULT81="/etc/nginx/sites-available/default81"
+NGINX_CONF_ENABLED="/etc/nginx/sites-enabled"
 
 # Function to print info logs
 log_info() {
@@ -80,19 +83,19 @@ configure_mode() {
     while true; do
         echo -e "${YELLOW}Would you like to configure the Raspberry Pi as an Access Point (AP) or Station (STA)?${NC}"
         echo -e "${YELLOW}Type 'AP' for Access Point or 'STA' for Station:${NC}"
-        read -p "> " mode_choice
+        read -p "> " MODE_CHOICE
 
         # Convert choice to uppercase for consistency
-        mode_choice=$(echo "$mode_choice" | tr '[:lower:]' '[:upper:]')
+        MODE_CHOICE=$(echo "$MODE_CHOICE" | tr '[:lower:]' '[:upper:]')
 
-        if [[ "$mode_choice" == "AP" || "$mode_choice" == "STA" ]]; then
-            log_info "You selected $mode_choice mode."
-            echo "$mode_choice" > $mode_file
-            log_info "Mode configuration saved to $mode_file."
+        if [[ "$MODE_CHOICE" == "AP" || "$MODE_CHOICE" == "STA" ]]; then
+            log_info "You selected $MODE_CHOICE mode."
+            echo "$MODE_CHOICE" > $MODE_FILE
+            log_info "Mode configuration saved to $MODE_FILE."
             
             # Print the content of mode_file to ensure the mode was saved correctly
-            log_info "Contents of $mode_file:"
-            cat $mode_file
+            log_info "Contents of $MODE_FILE:"
+            cat $MODE_FILE
             
             break
         else
@@ -141,6 +144,117 @@ configure_sta_mode() {
     log_info "Station (STA) configuration completed successfully."
 }
 
+
+# Function to create nginx default and default81 files for STA mode
+create_nginx_files_sta() {
+    log_info "Creating nginx default and default81 files for STA..."
+
+    # Crear el archivo "default81" para redirigir al puerto 8000
+    cat <<'EOL' > $NGINX_CONF_DEFAULT81
+server {
+    listen 81;
+    listen [::]:81;
+
+    server_name _;
+
+    location / {
+        proxy_pass http://localhost:8000/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+        add_header Cache-Control 'no-store, no-cache';
+    }
+
+}
+EOL
+
+
+    cat <<'EOL' > $NGINX_CONF_DEFAULT
+# Este archivo está vacío por ahora y se puede configurar en el futuro según sea necesario.
+EOL
+
+
+    if [ $? -eq 0 ]; then
+        log_info "Nginx configuration files created successfully:"
+        log_info " - $NGINX_CONF_DEFAULT81"
+        log_info " - $NGINX_CONF_DEFAULT"
+    else
+        log_error "Failed to create Nginx configuration files"
+        return 1
+    fi
+
+    log_info "Creating symbolic links to enable the configurations..."
+    sudo ln -sf $NGINX_CONF_DEFAULT81 $NGINX_CONF_ENABLED/default81
+    sudo ln -sf $NGINX_CONF_DEFAULT $NGINX_CONF_ENABLED/default
+
+    if [ $? -eq 0 ]; then
+        log_info "Symbolic links created successfully:"
+        log_info " - $NGINX_CONF_ENABLED/default81"
+        log_info " - $NGINX_CONF_ENABLED/default"
+    else
+        log_error "Failed to create symbolic links"
+        return 1
+    fi
+
+    log_info "Reloading Nginx to apply the changes..."
+    sudo systemctl reload nginx
+
+    if [ $? -eq 0 ]; then
+        log_info "Nginx reloaded successfully"
+    else
+        log_error "Failed to reload Nginx"
+        return 1
+    fi
+}
+
+create_nginx_file_ap() {
+    log_info "Creating nginx default file for AP..."
+
+    cat <<'EOL' > $NGINX_CONF_DEFAULT
+server {
+    listen 80;
+    listen [::]:80;
+
+    server_name _;
+
+    location / {
+        proxy_pass http://localhost:8000/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+        add_header Cache-Control 'no-store, no-cache';
+    }
+
+}
+
+EOL
+
+    if [ $? -eq 0 ]; then
+        log_info "Nginx configuration file created successfully at $NGINX_CONF_DEFAULT"
+    else
+        log_error "Failed to create Nginx configuration file"
+        return 1
+    fi
+
+    log_info "Creating symbolic link to enable the AP configuration..."
+    sudo ln -sf $NGINX_CONF_DEFAULT $NGINX_CONF_ENABLED/default
+
+    log_info "Reloading Nginx to apply the changes..."
+    sudo systemctl reload nginx
+
+    if [ $? -eq 0 ]; then
+        log_info "Nginx reloaded successfully"
+    else
+        log_error "Failed to reload Nginx"
+        return 1
+    fi
+}
+
+
 # Main function to orchestrate the configuration process
 main() {
     log_info "Starting installation script for Raspberry Pi."
@@ -161,10 +275,12 @@ main() {
     configure_mode
 
     # Step 6: Based on the user's choice, configure the system for either AP or STA
-    if [[ "$mode_choice" == "AP" ]]; then
+    if [[ "$MODE_CHOICE" == "AP" ]]; then
         configure_ap_mode
-    elif [[ "$mode_choice" == "STA" ]]; then
+        create_nginx_file_ap
+    elif [[ "$MODE_CHOICE" == "STA" ]]; then
         configure_sta_mode
+        create_nginx_files_sta
     else
         log_error "Invalid mode selected. Exiting."
         exit 1
