@@ -1,3 +1,21 @@
+#!/bin/bash
+
+# Colors for logs
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
+# Function to print info logs
+log_info() {
+    echo -e "${GREEN}[INFO]${NC} $1"
+}
+
+# Function to print error logs
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
 # Function to create nginx default and default81 files for STA mode
 create_nginx_files_sta() {
     log_info "Creating nginx default and default81 files for STA..."
@@ -51,3 +69,20 @@ configure_nginx_based_on_mode() {
         exit 1
     fi
 }
+
+# Test the script by setting the mode
+test_script() {
+    echo -e "${YELLOW}Enter mode (AP or STA):${NC}"
+    read mode_choice
+
+    # Convert choice to uppercase for consistency
+    mode_choice=$(echo "$mode_choice" | tr '[:lower:]' '[:upper:]')
+
+    log_info "Selected mode: $mode_choice"
+
+    # Call the function to configure nginx based on selected mode
+    configure_nginx_based_on_mode
+}
+
+# Run the test
+test_script
