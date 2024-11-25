@@ -61,7 +61,7 @@ log_info "Please follow these steps to set your WLAN country in 'raspi-config':"
 # Pause for 2 seconds before showing instructions
 sleep 5
 
-echo -e "${YELLOW}-> 5 Localisation Options -> L4 WLAN Country -> US${NC}"
+echo -e "${YELLOW}-> 5 Localisation Options -> L4 WLAN Country -> US${NC} -> OK -> Finish"
 
 # Step 4: Open raspi-config for the user to finalize settings
 log_info "Opening 'raspi-config' for WLAN country selection and other configurations."
