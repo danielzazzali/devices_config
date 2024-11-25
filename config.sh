@@ -58,13 +58,13 @@ fi
 # Step 3: Show instructions for WLAN country selection in raspi-config
 log_info "Please follow these steps to set your WLAN country in 'raspi-config':"
 
-# Pause for 2 seconds before showing instructions
-sleep 5
+# Display the instructions to the user
+echo -e "${YELLOW}-> 5 Localisation Options -> L4 WLAN Country -> <Country> -> OK -> Finish${NC}"
 
-echo -e "${YELLOW}-> 5 Localisation Options -> L4 WLAN Country -> US${NC} -> OK -> Finish"
+# Prompt user to press Enter to continue
+read -p "$(echo -e "${YELLOW}Press Enter to continue and open 'raspi-config'...${NC}")"
 
 # Step 4: Open raspi-config for the user to finalize settings
-log_info "Opening 'raspi-config' for WLAN country selection and other configurations."
 sudo raspi-config
 
 # Step 5: Prompt user for AP or STA configuration
