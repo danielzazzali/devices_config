@@ -10,16 +10,6 @@ NGINX_CONF_DEFAULT="/etc/nginx/sites-available/default"
 NGINX_CONF_DEFAULT81="/etc/nginx/sites-available/default81"
 NGINX_CONF_ENABLED="/etc/nginx/sites-enabled"
 
-# Function to print info logs
-log_info() {
-    echo -e "${GREEN}[INFO]${NC} $1"
-}
-
-# Function to print error logs
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
-
 # Function to create nginx default and default81 files for STA mode
 create_nginx_files_sta() {
     log_info "Creating nginx default and default81 files for STA..."
@@ -133,7 +123,6 @@ EOL
 configure_nginx_based_on_mode() {
     if [[ "$mode_choice" == "STA" ]]; then
         create_nginx_files_sta
-        create_nginx_ip_update_service
     elif [[ "$mode_choice" == "AP" ]]; then
         create_nginx_file_ap
     else
