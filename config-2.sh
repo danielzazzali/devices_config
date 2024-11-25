@@ -61,7 +61,7 @@ configure_sta_mode() {
 
     # Create Ethernet connection with static IP in the 192.168.1.0/24 network for eth0
     log_info "Creating Ethernet connection with static IP in 192.168.1.0/24 network..."
-    sudo nmcli connection add type ethernet con-name ETH ifname eth0 ipv4.addresses "192.168.1.100/24" ipv4.gateway "192.168.1.1" ipv4.method manual autoconnect yes
+    sudo nmcli connection add type ethernet con-name ETH ifname eth0 ipv4.addresses "192.168.1.1/24" ipv4.gateway "192.168.1.1" ipv4.method manual autoconnect yes
     
     # Bring up both connections
     sudo nmcli connection up WLAN
