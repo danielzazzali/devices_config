@@ -55,14 +55,13 @@ else
     log_warning "Skipped installing nginx and git."
 fi
 
-# Step 3: Prompt user for WLAN country selection
-log_info "You need to select the country for WLAN settings to ensure proper Wi-Fi operation."
+# Step 3: Show instructions for WLAN country selection in raspi-config
+log_info "Please follow these steps to set your WLAN country in 'raspi-config':"
 
-# Instructions to the user
-echo -e "${YELLOW}Please follow these steps to select your WLAN country:${NC}"
-echo -e "${YELLOW}1. You will now be prompted to select your country in the next screen.${NC}"
-echo -e "${YELLOW}2. This will configure the WLAN settings for your Raspberry Pi.${NC}"
-echo -e "${YELLOW}3. After that, the 'raspi-config' menu will open, where you can configure other settings.${NC}"
+# Pause for 2 seconds before showing instructions
+sleep 5
+
+echo -e "${YELLOW}-> 5 Localisation Options -> L4 WLAN Country -> US${NC}"
 
 # Step 4: Open raspi-config for the user to finalize settings
 log_info "Opening 'raspi-config' for WLAN country selection and other configurations."
