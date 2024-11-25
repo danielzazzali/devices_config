@@ -45,12 +45,12 @@ server {
 }
 EOL
 
-    # Crear el archivo "default" vacío para futuras configuraciones
+
     cat <<'EOL' > $NGINX_CONF_DEFAULT
 # Este archivo está vacío por ahora y se puede configurar en el futuro según sea necesario.
 EOL
 
-    # Comprobar si los archivos se crearon correctamente
+
     if [ $? -eq 0 ]; then
         log_info "Nginx configuration files created successfully:"
         log_info " - $NGINX_CONF_DEFAULT81"
@@ -60,12 +60,10 @@ EOL
         return 1
     fi
 
-    # Crear los enlaces simbólicos para habilitar los archivos de configuración
     log_info "Creating symbolic links to enable the configurations..."
     sudo ln -sf $NGINX_CONF_DEFAULT81 $NGINX_CONF_ENABLED/default81
     sudo ln -sf $NGINX_CONF_DEFAULT $NGINX_CONF_ENABLED/default
 
-    # Verificar si los enlaces se crearon correctamente
     if [ $? -eq 0 ]; then
         log_info "Symbolic links created successfully:"
         log_info " - $NGINX_CONF_ENABLED/default81"
@@ -75,11 +73,9 @@ EOL
         return 1
     fi
 
-    # Recargar Nginx para aplicar los cambios
     log_info "Reloading Nginx to apply the changes..."
     sudo systemctl reload nginx
 
-    # Verificar si Nginx se recargó correctamente
     if [ $? -eq 0 ]; then
         log_info "Nginx reloaded successfully"
     else
@@ -88,7 +84,6 @@ EOL
     fi
 }
 
-# Función para crear el archivo de configuración para AP
 create_nginx_file_ap() {
     log_info "Creating nginx default file for AP..."
 
@@ -113,7 +108,6 @@ server {
 
 EOL
 
-    # Comprobar si el archivo se creó correctamente
     if [ $? -eq 0 ]; then
         log_info "Nginx configuration file created successfully at $NGINX_CONF_DEFAULT"
     else
@@ -121,15 +115,12 @@ EOL
         return 1
     fi
 
-    # Crear enlace simbólico para habilitar la configuración de AP
     log_info "Creating symbolic link to enable the AP configuration..."
     sudo ln -sf $NGINX_CONF_DEFAULT $NGINX_CONF_ENABLED/default
 
-    # Recargar Nginx para aplicar los cambios
     log_info "Reloading Nginx to apply the changes..."
     sudo systemctl reload nginx
 
-    # Verificar si Nginx se recargó correctamente
     if [ $? -eq 0 ]; then
         log_info "Nginx reloaded successfully"
     else
